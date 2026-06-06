@@ -1,7 +1,7 @@
-
 import streamlit as st
 import pandas as pd
 import joblib
+import sys
 
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -27,7 +27,8 @@ class IQRCapper(BaseEstimator, TransformerMixin):
             axis=1
         )
         return X_capped.values
-
+        
+sys.modules["__main__"].IQRCapper = IQRCapper
 
 st.set_page_config(
     page_title="Customer Churn Prediction",
