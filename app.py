@@ -1,34 +1,8 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
-import sys
 
-from sklearn.base import BaseEstimator, TransformerMixin
-
-
-class IQRCapper(BaseEstimator, TransformerMixin):
-    def __init__(self, factor=1.5):
-        self.factor = factor
-
-    def fit(self, X, y=None):
-        X_df = pd.DataFrame(X)
-        self.q1_ = X_df.quantile(0.25)
-        self.q3_ = X_df.quantile(0.75)
-        self.iqr_ = self.q3_ - self.q1_
-        self.lower_ = self.q1_ - self.factor * self.iqr_
-        self.upper_ = self.q3_ + self.factor * self.iqr_
-        return self
-
-    def transform(self, X):
-        X_df = pd.DataFrame(X)
-        X_capped = X_df.clip(
-            lower=self.lower_,
-            upper=self.upper_,
-            axis=1
-        )
-        return X_capped.values
-        
-sys.modules["__main__"].IQRCapper = IQRCapper
 
 st.set_page_config(
     page_title="Customer Churn Prediction",
@@ -51,6 +25,7 @@ categorical_options = package["categorical_options"]
 reference_date = pd.to_datetime(package["reference_date"])
 
 st.title("Customer Churn Prediction")
+
 st.write(
     "Aplikasi ini digunakan untuk memprediksi apakah pelanggan berpotensi churn "
     "atau tidak churn berdasarkan data pelanggan, aktivitas penggunaan, transaksi, "
@@ -77,18 +52,22 @@ with col1:
     age = st.number_input("Age", min_value=0.0, max_value=100.0, value=30.0)
     country = st.selectbox("Country", categorical_options.get("country", ["Unknown"]))
     city = st.selectbox("City", categorical_options.get("city", ["Unknown"]))
+
     acquisition_channel = st.selectbox(
         "Acquisition Channel",
         categorical_options.get("acquisition_channel", ["Unknown"])
     )
+
     device_type = st.selectbox(
         "Device Type",
         categorical_options.get("device_type", ["Unknown"])
     )
+
     subscription_type = st.selectbox(
         "Subscription Type",
         categorical_options.get("subscription_type", ["Unknown"])
     )
+
     payment_method = st.selectbox(
         "Payment Method",
         categorical_options.get("payment_method", ["Unknown"])
@@ -143,8 +122,10 @@ def create_input_features(raw_input):
         reference_date - data["last_purchase_date"]
     ).dt.days
 
-    data["has_coupon_code"] = data["coupon_code"].notna().astype(int)
-    data.loc[data["coupon_code"].astype(str).str.strip() == "", "has_coupon_code"] = 0
+    data["has_coupon_code"] = 1
+
+    if str(raw_input.get("coupon_code", "")).strip() == "":
+        data["has_coupon_code"] = 0
 
     data["signup_month"] = data["signup_date"].dt.month
     data["signup_year"] = data["signup_date"].dt.year
@@ -196,12 +177,8 @@ raw_input = {
 if st.button("Prediksi Churn"):
     input_df = create_input_features(raw_input)
 
-    if hasattr(model, "predict_proba"):
-        churn_probability = model.predict_proba(input_df)[0][1]
-        prediction = int(churn_probability >= best_threshold)
-    else:
-        prediction = int(model.predict(input_df)[0])
-        churn_probability = None
+    churn_probability = model.predict_proba(input_df)[0][1]
+    prediction = int(churn_probability >= best_threshold)
 
     st.subheader("Hasil Prediksi")
 
@@ -210,9 +187,8 @@ if st.button("Prediksi Churn"):
     else:
         st.success("Pelanggan diprediksi TIDAK CHURN")
 
-    if churn_probability is not None:
-        st.metric("Probabilitas Churn", "{:.2%}".format(churn_probability))
-        st.write("Threshold yang digunakan:", round(float(best_threshold), 2))
+    st.metric("Probabilitas Churn", "{:.2%}".format(churn_probability))
+    st.write("Threshold yang digunakan:", round(float(best_threshold), 2))
 
     with st.expander("Lihat data input setelah feature engineering"):
         st.dataframe(input_df)
